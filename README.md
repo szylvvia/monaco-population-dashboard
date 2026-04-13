@@ -1,6 +1,6 @@
 # Monaco’s population overview
 
-Dashboard ShinyApps prezentujący dane o wzroście, masie ciała i BMI mieszkańców Monako (oraz innych krajów) w latach 1880 i 1980.
+Dashboard Shiny prezentujący dane o wzroście, masie ciała i BMI mieszkańców Monako (oraz innych krajów) w latach 1880 i 1980.
 
 ## Struktura dashboardu
 
