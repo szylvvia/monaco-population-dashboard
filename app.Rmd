@@ -1,0 +1,645 @@
+---
+title: "Monaco's population overview"
+output:
+  flexdashboard::flex_dashboard:
+  orientation: columns
+vertical_layout: fill
+source_code: embed
+theme: journal
+runtime: shiny
+resource_files:
+  - www/mc1.jpg
+---
+  
+```{r setup, include=FALSE}
+library(shiny)
+library(gridExtra)
+library(flexdashboard)
+library(ggplot2)
+library(kableExtra)
+library(dplyr)
+library(knitr)
+library(DT)
+library(pillar)
+library(cowplot)
+library(patchwork)
+```
+```{css, echo=FALSE}
+.selectize-dropdown-content .option {
+  color: initial;
+  background-color: initial;
+}
+
+/* Zmiana koloru czcionki dla selectInput */
+  .selectize-dropdown-content {
+    color: #5c5c5d;
+      font-size: 14px;
+  }
+
+/* Zmiana tła dla selectInput */
+  .selectize-input {
+    color: #5c5c5d;
+      font-size: 14px;
+    width: 100px;
+  }
+
+/* Zmiana czcionki dla selectInput */
+  .selectize-dropdown-content .option {
+    color: #5c5c5d;
+  }
+
+.selectize-dropdown-content .option:hover {
+  background-color:#f06c64;
+    color: white;
+}
+.shiny-input-container 
+{
+  display: inline-flex;
+  align-items: center;
+  margin-left: 30px;
+  width: 100px;
+}
+.control-label {
+  margin-right: 10px;
+}
+
+table.dataTable {
+  color: #5c5c5d;
+}
+```
+
+Introduction
+=====================================
+  
+  Column {data-width=500}
+-----------------------------------------------------------------------
+  
+### About
+  <p style="text-align:justify;">
+  <b><i>Monaco</b></i> is a tiny but glamorous principality located on the French Riviera, is renowned for its luxurious lifestyle, high-end casinos, and breathtaking Mediterranean views It is widely recognised as one of the wealthiest and most expensive places in the world. The population tends to be older, with many retirees and wealthy individuals choosing to settle there. Although the population has remained relatively stable, there's gradual growth through immigration and natural increase, carefully managed to maintain Monaco's unique charm.
+</p><br>
+  <img src="www/mc1.jpg" style="width: 100%;margin-top:-3%;">
+  
+### Table 1. Mean BMI in population of Monaco {data-height=200}
+  
+```{r}
+dane <- read.csv("data/population.csv", header = TRUE)
+monaco <- dane %>% filter(country=='Monaco') %>% select(-X)
+meanBMI_grouped <- monaco %>% group_by(year,sex) %>% summarize(bmi = round(mean(bmi),2))
+bmi_df <- data.frame(meanBMI_grouped)
+bmi_df$category <- ifelse(bmi_df$bmi < 18.5, "under",
+                          ifelse(bmi_df$bmi >= 18.5 & bmi_df$bmi < 25, "norm", "over"))
+
+datatable(bmi_df,options = list(dom = 't', paging = FALSE, searching = FALSE, ordering = FALSE),colnames = c('Year','Sex','Mean BMI','Category'))%>%
+  formatStyle(names(bmi_df), color = "#5c5c5d")
+bmi_woman_1980 <- bmi_df$bmi[3]
+population_f <- mutate(monaco,year=factor(year),sex=factor(sex))
+```
+Column {data-width=500}
+-----------------------------------------------------------------------
+  
+### Population of Monaco
+  
+```{r}
+datatable(select(monaco, height, sex, year, weight, bmi),colnames = c('Height','Sex','Year','Weight','BMI'))
+```
+
+
+### Conclusion {data-height=100}
+<p style="text-align:justify;">Based on the data in Table 1, it can be concluded that the population of Monaco in 1880 and 1980 is characterized by the desired body weight. The exception is the female population in 1980, where their BMI was `r bmi_woman_1980`, which is `r bmi_woman_1980-25` points above the threshold of the correct body weight.</p>
+  
+  Statistics
+=====================================
+  
+  Column {data-width=800}
+-----------------------------------------------------------------------
+### Table 2. Statitics of Monaco population {data-height=290}
+  
+```{r}
+
+population_grouped <- population_f %>%
+  group_by(year,sex)
+
+summarise_ <- population_grouped %>%
+  summarise(avg_h = round(mean(height), 2),
+            min_h = round(min(height), 2),
+            max_h = round(max(height), 2),
+            avg_w = round(mean(weight), 2),
+            min_w = round(min(weight), 2),
+            max_w = round(max(weight), 2),
+            mean_bmi = round(mean(bmi),2))
+
+datatable(summarise_,options = list(dom = 't', paging = FALSE, searching = FALSE, ordering = TRUE),colnames=c('Year','Sex','Mean height','Min height','Max height','Mean weight','Min weight','Max weight','Mean BMI'))
+```
+
+### Plot 1. Distribution of height and weight {data-width=1100}
+```{r, figures-side, fig.show="hold", out.width="50%"}
+
+par(mar = c(4, 4, .1, .1))
+boxplot_weight <- ggplot(population_f, aes(x = sex, y = weight, fill = sex)) +
+  geom_boxplot() +
+  labs(title = "Distribution of weight between men and women", x =  NULL, y = "Weight [kg]",fill="Sex") +
+  scale_fill_manual(values = c("#f06c64", "#b264f0")) +
+  facet_wrap(~ year) +
+  theme_minimal() +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 15,color="#5c5c5d"), 
+        plot.title = element_text(size = 18, color="#5c5c5d"),
+        axis.text.y = element_text(size = 15, color="#5c5c5d"),
+        legend.title = element_text(size = 15, color="#5c5c5d"),
+        legend.text = element_text(size = 15, color="#5c5c5d"),
+        strip.text = element_text(size = 15, color="#5c5c5d"),
+        axis.text.x = element_blank())
+
+boxplot_height <- ggplot(population_f, aes(x = sex, y = height, fill = sex)) +
+  geom_boxplot() +
+  labs(title = "Distribution of height between men and women", x = NULL, y = "Height [cm]",fill="Sex") +
+  scale_fill_manual(values = c("#f06c64", "#b264f0")) +
+  facet_wrap(~ year) +
+  theme_minimal() +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 15,color="#5c5c5d"), 
+        plot.title = element_text(size = 18, color="#5c5c5d"),
+        axis.text.y = element_text(size = 15, color="#5c5c5d"),
+        legend.title = element_text(size = 15, color="#5c5c5d"),
+        legend.text = element_text(size = 15, color="#5c5c5d"),
+        strip.text = element_text(size = 15, color="#5c5c5d"),
+        axis.text.x = element_blank())
+
+boxplot_height
+boxplot_weight
+
+```
+
+Column 
+-----------------------------------------------------------------------
+### Plot 2. Changes in BMI index {data-height=800}
+```{r out.width="100%"}
+bmi_data <- population_grouped %>% summarise(avg_bmi = mean(bmi))
+
+bmi_diff <- bmi_data %>%
+  group_by(sex) %>%
+  summarise(diff_bmi = avg_bmi[year == "1980"] - avg_bmi[year == "1880"], avg_bmi = (avg_bmi[year == "1980"] + avg_bmi[year == "1880"])/2)
+
+change_bmi <- bmi_data %>% ggplot(aes(x = avg_bmi, y = sex)) +
+  geom_line(size = 5, color = "pink") +
+  geom_point(aes(color=year), size=5) +
+  geom_text(data = filter(bmi_data, year == "1880"), aes(label = round(avg_bmi,2)), 
+            vjust = 0.4, 
+            hjust = ifelse(bmi_diff$diff_bmi > 0, 1.5, -0.5),
+            color="red",
+            size = 4.5) +
+  geom_text(data = filter(bmi_data, year == "1980"), aes(label = round(avg_bmi,2)), 
+            vjust = 0.4, 
+            hjust = ifelse(bmi_diff$diff_bmi > 0, -0.5, 1.5), 
+            color = "blue",
+            size = 4.5) +
+  geom_text(data = bmi_diff, aes(x = avg_bmi-1, y = sex, label = paste("Δ BMI =", round(diff_bmi, 2))),
+            vjust = -1, 
+            hjust = 0.2, 
+            color = "#5c5c5d", 
+            size = 4.5) +
+  labs(title = "Change in BMI between 1880 and 1980", x = "BMI index", y = NULL, color='Year') +
+  theme_minimal()+
+  theme(legend.position = "right", 
+        axis.title = element_text(size = 15,color="#5c5c5d"), 
+        plot.title = element_text(size = 20,color="#5c5c5d"),
+        axis.text.x = element_text(size = 15,color="#5c5c5d"),
+        axis.text.y = element_text(size = 15,color="#5c5c5d"),
+        legend.title = element_text(size = 15,color="#5c5c5d"),
+        legend.text = element_text(size = 15,color="#5c5c5d"))+
+  xlim(min(bmi_data$avg_bmi) - 3, max(bmi_data$avg_bmi) + 4)
+change_bmi
+```
+
+### Conclusion
+
+```{r}
+quantiles_data <- population_f %>%
+  group_by(sex, year) %>%
+  summarise(
+    q1_height= round(quantile(height, probs = c(0.25), na.rm = TRUE),2),
+    q2_height = round(quantile(height, probs = c(0.5), na.rm = TRUE),2),
+    q3_height = round(quantile(height, probs = c(0.75), na.rm = TRUE),2),
+    q1_weight = round(quantile(weight, probs = c(0.25), na.rm = TRUE),2),
+    q2_weight = round(quantile(weight, probs = c(0.5), na.rm = TRUE),2),
+    q3_weight = round(quantile(weight, probs = c(0.75), na.rm = TRUE),2))
+
+# datatable(quantiles_data,options = list(dom = 't', paging = FALSE, searching = FALSE, ordering = TRUE),colnames=c('Year','Sex','Q1 Height','Q2 Height','Q3 Height','Q1 Weight','Q2 Weight','Q3 Weight'))
+
+```
+<p><b>About changes BMI index</b></p>
+  
+  <p style="text-align: justify;">Plot 2 shows the changes in BMI of male and women over a 100-year perspective. Based on it, it can be said that the <b>BMI of male decreased by `r bmi_diff%>%filter(sex=='male') %>% .$diff_bmi %>% abs() %>% round(2) ` points</b> between 1880 and 1980. This was influenced by a decrease in weight with an increase in height. </p>
+  <p style="text-align: justify;">The situation is reversed for women. <b>BMI of female increased by `r bmi_diff%>%filter(sex=='female') %>% .$diff_bmi %>% abs() %>% round(2)` points </b> over 100 years. This is due to an increase in body weight at the same time, a decrease in height values. </p>
+  
+  <p><b>About height and weight in population</b></p>
+  
+  <p style="text-align: justify;">Based on the box plots (plot 1) and quantile values (below), the following observations can be made:
+  <ul>
+  <li>50% of the male population in 1880 has:</li>
+  <ul>
+  <li>height between `r quantiles_data %>% filter(year==1880, sex=='male') %>% .$q1_height` cm and `r quantiles_data %>% filter(year==1880, sex=='male') %>% .$q3_height` cm.</li>
+  <li>weight between `r quantiles_data %>% filter(year==1880, sex=='male') %>% .$q1_weight` kg and `r quantiles_data %>% filter(year==1880, sex=='male') %>% .$q3_weight` kg.</li>
+  </ul>
+  <li>50% of the female population in 1880 has:</li>
+  <ul>
+  <li>height between `r quantiles_data %>% filter(year==1880, sex=='female') %>% .$q1_height` cm and `r quantiles_data %>% filter(year==1880, sex=='female') %>% .$q3_height` cm.</li>
+  <li>weight between `r quantiles_data %>% filter(year==1880, sex=='female') %>% .$q1_weight` kg and `r quantiles_data %>% filter(year==1880, sex=='female') %>% .$q3_weight` kg.</li>
+  </ul>
+  <!--  -->
+  <li>50% of the male population in 1980 has:</li>
+  <ul>
+  <li>height between `r quantiles_data %>% filter(year==1980, sex=='male') %>% .$q1_height` cm and `r quantiles_data %>% filter(year==1980, sex=='male') %>% .$q3_height` cm.</li>
+  <li>weight between `r quantiles_data %>% filter(year==1980, sex=='male') %>% .$q1_weight` kg and `r quantiles_data %>% filter(year==1980, sex=='male') %>% .$q3_weight` kg.</li>
+  </ul>
+  <li>50% of the female population in 1980 has:</li>
+  <ul>
+  <li>height between `r quantiles_data %>% filter(year==1980, sex=='female') %>% .$q1_height` cm and `r quantiles_data %>% filter(year==1980, sex=='female') %>% .$q3_height` cm.</li>
+  <li>weight between `r quantiles_data %>% filter(year==1980, sex=='female') %>% .$q1_weight` kg and `r quantiles_data %>% filter(year==1980, sex=='female') %>% .$q3_weight` kg.</li>
+  </ul>
+  </ul>
+  </p>
+```{r}
+html_table <- kable(quantiles_data, format = "html", col.names = c('Year','Sex','Q1 Height','Q2 Height','Q3 Height','Q1 Weight','Q2 Weight','Q3 Weight')) %>%
+  kable_styling(font_size = 10)%>%
+  column_spec(1:8, color = "#5c5c5d")
+html_table
+```
+
+World Dimensions
+=====================================
+  
+  Column {data-width=750}
+-----------------------------------------------------------------------
+  
+  
+### Plot 3. Distributions of weight and height in countries
+  
+```{r out.height="100%"}
+data_f <- dane %>%
+  mutate(year = factor(year),
+         sex = factor(sex),
+         country = factor(country))
+
+country_colors <- scales::hue_pal()(length(unique(data_f$country)))
+names(country_colors) <- unique(data_f$country)
+
+fluidRow(
+  column(4, selectInput("var_type", "Select param:", choices = c("Weight", "Height"))),
+  column(4, selectInput("var_date", "Select year:", choices = c(1880, 1980))),
+  column(4, selectInput("var_sex", "Select sex:", choices = c("male","female")))
+)
+
+median_data <- data_f %>%
+  group_by(country, year, sex) %>%
+  summarise(median_height = median(height, na.rm = TRUE),
+            median_weight = median(weight, na.rm = TRUE),
+            median_bmi = median(bmi, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+output$worldPlot <- renderPlot({
+  if (input$var_type == "Weight") {
+    data <- data_f %>% filter(year==input$var_date,sex==input$var_sex)
+    min_val <- min(data$weight, na.rm = TRUE)
+    max_val <- max(data$weight, na.rm = TRUE)
+    ggplot(data, aes(x = country, y = weight, fill = country)) +
+      geom_boxplot() +
+      labs(title = paste("Distribution of",input$var_sex,"weight in",input$var_date), x = NULL, y = "Weight (kg)", fill="Country") +
+      stat_summary(fun = median, geom = "text", aes(label = round(..y.., 2)), vjust = -0.5, size=3.5)+
+      theme_minimal() + 
+      theme(
+        plot.margin = margin(0, 0.5, 1.5, 0.5, "cm"),
+        axis.title = element_text(size = 15,color="#5c5c5d"), 
+        plot.title = element_text(size = 20,color="#5c5c5d"),
+        axis.text.y = element_text(size = 15,color="#5c5c5d"),
+        legend.title = element_text(size = 15,color="#5c5c5d"),
+        legend.text = element_text(size = 15,color="#5c5c5d"),
+        axis.text.x = element_blank()) +
+      ylim(min_val, max_val)+
+      scale_fill_manual(values = country_colors)
+  } else {
+    data <- data_f %>% filter(year==input$var_date,sex==input$var_sex)
+    min_val <- min(data$height, na.rm = TRUE)
+    max_val <- max(data$height, na.rm = TRUE)
+    ggplot(data, aes(x = country, y = height, fill = country)) +
+      geom_boxplot() +
+      labs(title = paste("Distribution of",input$var_sex,"weight in",input$var_date), x = NULL, y = "Height (cm)",fill="Country") +
+      stat_summary(fun = median, geom = "text", aes(label = round(..y.., 2)), vjust = -0.5)+
+      theme_minimal() + 
+      theme(plot.margin = margin(0, 0.5, 1.5, 0.5, "cm"),
+            axis.title = element_text(size = 15,color="#5c5c5d"), 
+            plot.title = element_text(size = 20,color="#5c5c5d"),
+            axis.text.y = element_text(size = 15,color="#5c5c5d"),
+            legend.title = element_text(size = 15,color="#5c5c5d"),
+            legend.text = element_text(size = 15,color="#5c5c5d"),
+            axis.text.x = element_blank()) +
+      ylim(min_val, max_val)+
+      scale_fill_manual(values = country_colors)
+  }
+})
+
+plotOutput("worldPlot")
+```
+Column 
+-----------------------------------------------------------------------
+  
+### Plot 4. Distribution of BMI index  {data-height=700}
+  
+```{r}
+countries <- unique(data_f$country)
+
+fluidRow(
+  column(6, selectInput("var_country", "Select country:", choices = countries)),
+  column(5, selectInput("var_year_1", "Select year:", choices = c(1880, 1980)))
+)
+
+output$countryPlot <- renderPlot({
+  data <- data_f%>%filter(country==input$var_country, year==input$var_year_1)
+  ggplot(data, mapping = aes(x=bmi, fill=country)) +
+    geom_histogram(aes(y = after_stat(density)),bins=30, color="#5c5c5d") +
+    labs(title = paste("Distribution of BMI index in", input$var_country,"in",input$var_year_1), x = "BMI index", y = "Distribution") +
+    theme_minimal() +
+    theme(plot.margin = margin(0, 1, 2, 1, "cm"),
+          legend.position = ('none'),
+          axis.title = element_text(size = 15,color="#5c5c5d"), 
+          plot.title = element_text(size = 20,color="#5c5c5d"),
+          axis.text.y = element_text(size = 15,color="#5c5c5d"),
+          axis.text.x = element_text(size = 15,color="#5c5c5d")) +
+    scale_fill_manual(values = country_colors[input$var_country])
+})
+plotOutput("countryPlot")
+```
+
+### Table 3. Statistical summary of height distributions
+
+```{r}
+quantiles_data_countries <- data_f %>%
+  group_by(sex, year, country) %>%
+  summarise(
+    q1_height= round(quantile(height, probs = c(0.25), na.rm = TRUE),2),
+    q2_height = round(quantile(height, probs = c(0.5), na.rm = TRUE),2),
+    q3_height = round(quantile(height, probs = c(0.75), na.rm = TRUE),2),
+    q1_weight = round(quantile(weight, probs = c(0.25), na.rm = TRUE),2),
+    q2_weight = round(quantile(weight, probs = c(0.5), na.rm = TRUE),2),
+    q3_weight = round(quantile(weight, probs = c(0.75), na.rm = TRUE),2))
+
+datatable(quantiles_data_countries,
+          options = list(dom = 't', paging = FALSE, searching = TRUE, ordering = FALSE,
+                         style = list(size = 20)),
+          rownames = FALSE,
+          colnames = c('Sex','Year','Country','Q1H','Q2H','Q3H','Q1W','Q2W','Q3W'))
+
+
+```
+
+Health on Horizon
+=====================================
+  
+  Column {data-width=700}
+-----------------------------------------------------------------------
+### Plot 5. Changes in weight and height
+  
+  
+```{r}
+
+fluidRow(
+  column(4, selectInput("sex", "Select sex:", choices = c('male','female'))),
+  column(4, selectInput("type", "Select type:", choices = c('height','weight')))
+)
+```
+
+
+```{r out.height="100%"}
+
+median_data <- median_data %>% filter(year==1880 | year==1980)
+median_data <- median_data %>%
+  group_by(sex, country) %>%
+  mutate(diff_median_height = median_height[year == "1980"] - median_height[year == "1880"],
+         diff_median_weight = median_weight[year == "1980"] - median_weight[year == "1880"],
+         diff_median_bmi = median_bmi[year == "1980"] - median_bmi[year == "1880"])
+
+
+median_diff <- median_data %>% 
+  group_by(sex,country) %>%
+  summarise(
+    diff_bmi = median_bmi[year == "1980"] - median_bmi[year == "1880"],
+    avg_bmi = mean(median_bmi[year == 1980 | year == 1880], na.rm = TRUE),
+    diff_height = median_height[year == "1980"] - median_height[year == "1880"],
+    avg_height = mean(median_height[year == 1980 | year == 1880], na.rm = TRUE),
+    diff_weight = median_weight[year == "1980"] - median_weight[year == "1880"],
+    avg_weight = mean(median_weight[year == 1980 | year == 1880], na.rm = TRUE))
+
+median_diff_avg <- median_diff %>% 
+  group_by(sex) %>%
+  summarise(
+    avg_median_height = mean(diff_height))
+
+output$dumbell_plot_countries <- renderPlot({
+  if (input$type == "height") 
+  {
+    median_data <- median_data %>% 
+      filter(sex == input$sex) %>%
+      filter(year == 1880 | year == 1980)
+    
+    gender <- ifelse(input$sex=='male',"Male",'Female')
+    
+    median_data %>%
+      ggplot(aes(x = median_height, y = country)) +
+      geom_line(aes(color = ifelse(diff_median_height > 0, "Increase", "Decrease")), size = 4) +
+      geom_point(aes(color = year), size = 5,width = 1) +
+      geom_text(data = filter(median_data, year == 1880), 
+                aes(label = round(median_height, 2)), 
+                vjust = 0.4, 
+                color = "#5c5c5d", 
+                size = 4.5,
+                hjust = ifelse(filter(median_data, year == 1880)$diff_median_height > 0, 1.4, -0.3)) +
+      geom_text(data = filter(median_data, year == 1980), 
+                aes(label = round(median_height, 2)), 
+                vjust = 0.4, 
+                hjust = ifelse(filter(median_data, year == 1980)$diff_median_height > 0, -0.3, 1.4),
+                color = "#5c5c5d", 
+                size = 4.5) +
+      geom_text(data = median_diff %>% filter(sex==input$sex), aes(x = avg_height, y = country, 
+                                                                   label = paste("ΔH =", round(diff_height, 2))),
+                vjust = -1, 
+                hjust = ifelse(filter(median_data, year == 1980)$diff_median_height > 0, 0.4, 0.5),
+                color = ifelse(filter(median_data, year == 1980)$diff_median_height > 0, "firebrick3", "mediumorchid4"),
+                size = 3.8) +
+      labs(title = paste("How has the development of civilization affected people's physical growth over the last century?"),
+           subtitle = paste("The Role of Advances in Medicine, Hygiene and Nutrition in Shaping Physical Growth: A Global Perspective for",gender),
+           x = "Height [cm]",
+           y = NULL,
+           color = 'Legend') +
+      theme_minimal() +
+      theme(legend.position = "right",
+            plot.title = element_text(size = 17, face="bold", color="#5c5c5d"),
+            plot.title.position = "plot",
+            plot.subtitle = element_text(face="italic", size=15, margin=margin(b=12),color="#5c5c5d"),
+            plot.caption = element_text(size=8, margin=margin(t=12), color="#7a7d7e"),
+            axis.title = element_text(size = 13,color="#5c5c5d"), 
+            axis.text.x = element_text(size = 15,color="#5c5c5d"),
+            axis.text.y = element_text(size = 15, color="#5c5c5d"),
+            legend.title = element_text(size = 15, color="#5c5c5d"),
+            legend.text = element_text(size = 15, color="#5c5c5d"),
+            plot.margin = margin(0, 1, 2, 1, "cm")) +
+      scale_color_manual(values = c("1880" = "#a2f064", "1980" = "#64e8f0", "Increase" = "#f06c64", "Decrease" = "#b264f0")) +
+      xlim(min(median_data$median_height) - 2, max(median_data$median_height) + 2)+
+      scale_y_discrete(expand = expansion(add = 0.8))
+    
+  }
+  else
+  {
+    gender <- ifelse(input$sex=='male',"Male",'Female')
+    
+    median_data <- median_data %>% 
+      filter(sex == input$sex) %>%
+      filter(year == 1880 | year == 1980)
+    
+    median_data %>%
+      ggplot(aes(x = median_weight, y = country)) +
+      geom_line(aes(color = ifelse(diff_median_weight > 0, "Increase", "Decrease")), size = 4) +
+      geom_point(aes(color = year), size = 5,width = 1) +
+      geom_text(data = filter(median_data, year == 1880), 
+                aes(label = round(median_weight, 2)), 
+                vjust = 0.4, 
+                color = "#5c5c5d", 
+                size = 4.5,
+                hjust = ifelse(filter(median_data, year == 1880)$diff_median_weight > 0, 1.4, -0.3)) +
+      geom_text(data = filter(median_data, year == 1980), 
+                aes(label = round(median_weight, 2)), 
+                vjust = 0.4, 
+                hjust = ifelse(filter(median_data, year == 1980)$diff_median_weight > 0, -0.3, 1.4),
+                color = "#5c5c5d",
+                size = 4.5) +
+      geom_text(data = median_diff %>% filter(sex==input$sex), aes(x = avg_weight, y = country, 
+                                                                   label = paste("ΔW =", round(diff_weight, 2))),
+                vjust = -1, 
+                hjust = ifelse(filter(median_data, year == 1980)$diff_median_weight > 0, 0.4, 0.5),
+                color = ifelse(filter(median_data, year == 1980)$diff_median_weight > 0, "firebrick3", "mediumorchid4"),
+                size = 3.8) +
+      labs(title = paste("How have global changes in diets and lifestyles due to technological advances affected weight gain?"),
+           subtitle = paste("Impact of Global Urbanization and Lifestyle Changes: Fast Food and Processed Foods Influenced Weight Gain for",gender),
+           x = "Weight [kg]",
+           y = NULL,
+           color = 'Legend') +
+      theme_minimal() +
+      theme(legend.position = "right",
+            plot.title = element_text(size = 17, face="bold", color="#5c5c5d"),
+            plot.title.position = "plot",
+            plot.subtitle = element_text(face="italic", size=15, margin=margin(b=12),color="#5c5c5d"),
+            plot.caption = element_text(size=8, margin=margin(t=12), color="#7a7d7e"),
+            axis.title = element_text(size = 13,color="#5c5c5d"), 
+            axis.text.x = element_text(size = 15,color="#5c5c5d"),
+            axis.text.y = element_text(size = 15, color="#5c5c5d"),
+            legend.title = element_text(size = 15, color="#5c5c5d"),
+            legend.text = element_text(size = 15, color="#5c5c5d"),
+            plot.margin = margin(0, 1, 2, 1, "cm")) +
+      scale_color_manual(values = c("1880" = "#a2f064", "1980" = "#64e8f0", "Increase" = "#f06c64", "Decrease" = "#b264f0")) +
+      xlim(min(median_data$median_weight) - 2, max(median_data$median_weight) + 2)+
+      scale_y_discrete(expand = expansion(add = 0.8))
+  }
+})
+
+
+plotOutput("dumbell_plot_countries") 
+
+```
+
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+  
+### Sensitive indicators of population well-being
+  
+```{r}
+output$message <- renderText({
+  if(input$type == 'height') 
+  {
+    message <- "<p style='text-align:justify;'>People's taller stature is mainly the result of medical advances, improved
+    hygiene and better nutrition. The height of men and women in 1880 and 1980 was compared. The significant differences
+    between the people of different countries can be partly explained by genetics, but environmental factors are believed to be
+    the main cause.</p>
+    <p style='text-align:justify;'><b>What factors have increased human growth over the past century?</b></p>
+    <ol style='text-align:justify;'>
+      <li><b>Medical progress:</b> The introduction of vaccinations against infectious diseases such as smallpox, polio and
+      tuberculosis in the 19th and 20th centuries greatly improved people's health, which contributed to their growth. In
+      addition, the development of antibiotics in the 1940s helped fight infections that were previously fatal.</li>
+      <li><b>Better hygiene:</b> The 19th century, with the Industrial Revolution, saw the development of sanitation
+      infrastructure, such as sanitation and access to clean water. These changes helped reduce infectious diseases and improve
+      people's overall health.</li>
+      <li><b>Nutrition:</b> The 20th century saw major advances in agriculture, leading to increased food production and
+      improved food quality. Access to a varied diet, rich in protein and other nutrients, has contributed to human
+      growth.</li>
+    </ol>
+    <p style='text-align:justify;'>All of these factors, combined with other environmental factors, have contributed to the significant increase in human growth over the past century. However, as the NCD RisC researchers note, there is a considerable disparity between representatives of different countries, which they explain in part by genetic issues. This suggests that while the development of civilization has had a significant impact on human growth, genetics still plays an important role.</p>
+    <p style='text-align:justify;'><b>Why has the growth of people in South Africa not increased significantly, despite the global trend of increasing growth?</b></p>
+    <p style='text-align:justify;'>Despite the global trend of increasing growth, human growth in South Africa has not increased significantly. Possible reasons for this may include historical factors, such as the effects of apartheid, as well as health and socioeconomic challenges, such as high HIV rates and social inequality.</p>"
+  }
+  else
+  {
+    message <- "<div style='text-align:justify;'>
+    <p>In many countries, median body weight increased between 1880 and 1980. The weight of men and women was compared. This increase can be attributed to several
+    factors that are part of broader global socioeconomic changes in the world.
+    <p><b>What factors have influenced the weight growth of men and women over 100 years?</b></p>
+    <ol>
+      <li><b>Urbanization:</b> Urbanization led to a change in lifestyle, from an active, physical lifestyle in rural areas to
+      a more sedentary lifestyle in cities. This may have led to lower energy expenditure and increased weight gain.</li>
+
+      <li><b>Dietary changes:</b> The introduction of fast food and increased consumption of processed foods, which are often
+      high in fat and sugars, may have contributed to weight gain.</li>
+
+      <li><b>Technological advances:</b> Technology has increased food production, allowing access to a greater quantity and
+      variety of foods. However, many of these new foods were highly processed and contained more calories, which may have
+      contributed to weight gain.</li></p>
+      <li><b>Canon of Beauty:</b> In the late 19th century, obesity was often associated with higher social status. A wide
+      waistline suggested one could afford sumptuous feasts, which was a symbol of wealth1. Body weight was not yet a standard
+      of beauty, but rather a curiosity of the body, measured at fairs</li>
+    </ol>
+    <p>In addition, it is worth noting that genetic and historical factors also play a role in shaping body weight. Genes can affect metabolism, appetite and body fat distribution, which can contribute to weight gain. Historical factors, such as changes in national societies and cultures over the years, have also had an impact on weight gain.</p>
+    <p><b>What could have caused the weight loss of women in Autralia and South Africa and men in Monaco in the face of a trend of weight gain over 100 years?</b></p>
+    <p>
+      Weight loss can be caused by many factors, such as changes in diet, physical activity, lifestyle and even stress. 
+    </p>
+    
+    <p>
+      In the case of men in Monaco, it may have been due to a change in lifestyle or diet. Monaco is known to be home to many
+      rich and famous people, and the trend toward healthy eating and physical activity may have influenced weight loss.
+    </p>
+    <p>
+      As for women in South Africa and Australia, it may have been due to social and economic changes. In the 1980s, both
+      countries experienced significant political and social changes that may have affected people's lifestyles, including
+      their diets and physical activity.
+    </p>
+    <p>
+      In South Africa, the end of apartheid in the 1990s may have influenced improved access to health care and education,
+      which may have led to healthier dietary choices and greater physical activity.
+    </p>
+    <p>
+      Similarly, in Australia, a growing awareness of healthy lifestyles and physical activity may have contributed to weight
+      loss.
+    </p>
+    
+    </div>"
+  }
+})
+htmlOutput('message')
+```
+
+### Monaco over the world {data-height=100}
+<div style='text-align:justify;'>
+  Monaco has always been a place of luxury and prestige. This wealth may have contributed to better living conditions, including access to better health care and nutrition, which in turn may have influenced growth and weight.
+
+Between 1880 and 1980, Monaco underwent significant urbanization and development, including the construction of new neighborhoods and ports. These changes may have contributed to improved living conditions and access to resources, which may have influenced the increase in height and weight.
+
+As Monaco developed, the lifestyles of its residents also changed. For example, in the Fontvieille district, exercise sessions and outdoor equipment replaced the gymnastic displays of the early 20th century. These lifestyle changes may have influenced the increase in height and weight.
+
+The decline in weight in Monaco men between 1880 and 1980 may be related to similar factors. For example, lifestyle changes such as increased physical activity and a healthier diet may have contributed to the weight loss. In addition, studies from the early 20th century showed a link between body weight and mortality1, which may have prompted men to maintain a healthier body weight.
+
+When comparing Monaco with other countries, it can be seen that the increase in height and weight in Monaco is in line with the general trend of increased height and weight worldwide over the past two centuries. However, Monaco-specific historical and socioeconomic factors may have contributed to the unique trends observed in the country.
+</div>
+  
+  
+  
+  
